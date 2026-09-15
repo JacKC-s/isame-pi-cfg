@@ -18,3 +18,9 @@ list when a script needs them).
 
 The source script does not need an executable bit: Nix creates the executable
 wrapper. Keep scripts in Git so a clone contains the same scripts.
+
+`init-setup` is included for the Pi images. Run `sudo init-setup` after a
+configuration switch to start NetworkManager, SSH, Klipper, Moonraker,
+Mainsail's nginx server, and the ISAME login-banner service without rebooting.
+Those services are still enabled declaratively by the NixOS configuration, so
+they will also start automatically on subsequent boots.
