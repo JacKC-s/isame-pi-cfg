@@ -84,6 +84,15 @@ https://github.com/JacKC-s/isame-pi-cfg/settings/keys
 Add it there with write access, rerun `save-config`. Key's scoped to
 this repo only, nothing else on the account.
 
+## User scripts
+
+Put shell scripts in `scripts/bin/`. Every regular, non-hidden file in that
+directory becomes a command of the same name on both Pi images after a rebuild
+and is also available read-only at `/etc/isame/scripts/<name>`. See
+[`scripts/README.md`](scripts/README.md) for naming and dependency details.
+Because the directory is version-controlled, cloning this repository retrieves
+the scripts too.
+
 ## pi4-software
 
 Default account, home dir is where klipper/moonraker expect their data
