@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Start the services provided by the Pi configuration immediately.
+#
+# NixOS enables these declaratively; this command is useful after an image is
+# installed or a configuration is switched when the services need starting
+# without a reboot.
+
+set -eu
+
+if [ "$(id -u)" -ne 0 ]; then
+  echo "Run this command with sudo: sudo init-setup" >&2
+  exit 1
+fi
+
+services=(
+  NetworkManager.service
+  sshd.service
+  klipper.service
+  moonraker.service
+  nginx.service
+  isame-issue-branch.service
+)
+
+for service in "${services[@]}"; do
+  echo "Starting $service"
+  /run/current-system/sw/bin/systemctl start "$service"
+done
+
+echo "All ISAME Pi services are running."

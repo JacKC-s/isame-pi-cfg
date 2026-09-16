@@ -3,7 +3,10 @@
 # shared by rpi4 + rpi5, board stuff lives in nixos-hardware modules,
 # printer stack is in mainsail-stack.nix
 {
-  imports = [ ./local-packages.nix ];
+  imports = [
+    ./local-packages.nix
+    ../modules/user-scripts.nix
+  ];
 
   hardware.enableRedistributableFirmware = true;
 
