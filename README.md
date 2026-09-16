@@ -26,6 +26,40 @@ nix build --impure .#nixosConfigurations.rpi4.config.system.build.sdImage
 
 `--impure` is for the secrets stuff below, not optional for the pi targets.
 
+## Building without a VM
+
+None of this actually needs NixOS - a NixOS VM is just what we happened
+to build the first images on. Plain Nix on any real Linux (including
+WSL) builds the `rpi4`/`rpi5` targets directly, given two things: Nix
+itself, and aarch64 emulation so an x86_64 machine can cross-build for
+the Pi. Windows itself can't run Nix at all (no POSIX layer for it to
+sit on), so on Windows this means WSL specifically, not the raw host.
+
+One-time setup on Ubuntu/Debian-based WSL or Linux:
+
+```bash
+sudo apt install -y qemu-user-binfmt
+mkdir -p ~/.config/nix
+echo 'extra-platforms = aarch64-linux' >> ~/.config/nix/nix.conf
+```
+
+(`qemu-user-binfmt` registers the aarch64 interpreter with the kernel;
+the `nix.conf` line is what actually tells Nix it's allowed to build
+that platform locally. User-level config on purpose - no need to touch
+`/etc/nix/nix.conf` or run anything else as root.)
+
+Then generate a bootstrap key at `$HOME/secrets/bootstrap-age-key.txt`
+(see "First-time setup" under pi4-software below) and build same as
+anywhere else:
+
+```bash
+nix build --impure .#nixosConfigurations.rpi4.config.system.build.sdImage
+```
+
+Other distros: swap `qemu-user-binfmt` for whatever package provides
+`binfmt_misc` registration for `qemu-aarch64` (e.g. `qemu-user-static` on
+distros where that's still the real package name, not a virtual one).
+
 ## Flashing
 
 `result/sd-image/nixos-image-sd-card-*.img` -> Raspberry Pi Imager,
@@ -103,10 +137,14 @@ in the clear.
 ### First-time setup
 
 You need your own bootstrap key - the one any existing image was built
-with only exists on the machine that built it, never in this repo:
+with only exists on the machine that built it, never in this repo. Goes
+at `$HOME/secrets/bootstrap-age-key.txt` (works whether that's `/root` on
+a VM or a regular user's home on WSL/Linux - see "Building without a VM"
+below):
 
 ```bash
-nix-shell -p age --run 'age-keygen -o /root/secrets/bootstrap-age-key.txt'
+mkdir -p ~/secrets
+nix-shell -p age --run 'age-keygen -o ~/secrets/bootstrap-age-key.txt'
 ```
 
 Do this *after* `nixos-install` + reboot, not from the live ISO - the
@@ -123,11 +161,12 @@ assistant to run it for you, even this repo's own. Anything typed
 through an automated tool call ends up in that tool's conversation
 history, which defeats the entire point of rotating a secret. One
 command, on whatever machine holds
-`/root/secrets/bootstrap-age-key.txt` (a pi, or the build vm):
+`$HOME/secrets/bootstrap-age-key.txt` (a pi, the build vm, or your own
+WSL/Linux machine):
 
 ```bash
 nix-shell -p age mkpasswd --run '
-  age_pub=$(grep "public key" /root/secrets/bootstrap-age-key.txt | cut -d" " -f4)
+  age_pub=$(grep "public key" ~/secrets/bootstrap-age-key.txt | cut -d" " -f4)
   mkpasswd -m sha-512 | age -r "$age_pub" -o hosts/secrets/pi4-software-password.age
 '
 ```

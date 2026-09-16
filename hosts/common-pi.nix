@@ -64,11 +64,12 @@
   '';
 
   # decrypt key baked into the image (path here, key itself is not in
-  # the repo - lives at /root/secrets/bootstrap-age-key.txt on whatever
-  # builds this). works from first boot, no ssh-host-key timing issue.
-  # can rekey against a Pi's real host key later, not required though.
+  # the repo - lives at $HOME/secrets/bootstrap-age-key.txt on whatever
+  # builds this, so it works whether that's root on a vm or a regular
+  # user on wsl/linux). works from first boot, no ssh-host-key timing
+  # issue. can rekey against a Pi's real host key later, not required.
   environment.etc."age/bootstrap-key.txt" = {
-    source = /root/secrets/bootstrap-age-key.txt;
+    source = builtins.toPath (builtins.getEnv "HOME" + "/secrets/bootstrap-age-key.txt");
     mode = "0400";
   };
   age.identityPaths = [ "/etc/age/bootstrap-key.txt" ];
