@@ -1,8 +1,11 @@
 { config, pkgs, lib, ... }:
 
-# just the dev vm, printer stack is elsewhere (rpi4.nix / rpi5.nix)
+# just the dev vm, printer stack is elsewhere (hosts/pi4.nix / pi5.nix)
 {
-  imports = [ ./hardware-configuration.nix ];
+  imports = [
+    ./hardware-configuration.nix
+    ../../modules/motd.nix
+  ];
 
   boot.loader.grub = {
     enable = true;
@@ -17,7 +20,7 @@
 
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
 
-  networking.hostName = "mainsail-buildhost";
+  networking.hostName = "isame-buildhost";
   networking.networkmanager.enable = true;
 
   time.timeZone = "UTC";
@@ -30,43 +33,10 @@
     };
   };
 
-  users.users.root.initialPassword = "diddy123";
-
-  # same banners as the pi targets, mostly here so they're actually
-  # visible somewhere without real hardware - this vm just builds,
-  # never boots rpi4/rpi5 itself
-  services.getty.helpLine = lib.mkAfter ''
-
-    In-Space Additive Manufacturing Experience
-  '';
-
-  systemd.services.isame-issue-branch = {
-    description = "write current branch into the pre-login banner";
-    wantedBy = [ "multi-user.target" ];
-    before = [ "getty.target" "getty-pre.target" ];
-    serviceConfig.Type = "oneshot";
-    script = ''
-      mkdir -p /run/issue.d
-      branch="$(${pkgs.git}/bin/git -C /etc/nixos symbolic-ref --short -q HEAD)"
-      [ -n "$branch" ] || branch="unknown"
-      {
-        echo "Configuration: $branch"
-        echo "https://github.com/JacKC-s/isame-pi-cfg/tree/$branch"
-        echo
-      } > /run/issue.d/50-isame-branch.issue
-    '';
-  };
-
-  programs.bash.interactiveShellInit = ''
-    branch="$(${pkgs.git}/bin/git -C /etc/nixos symbolic-ref --short -q HEAD)"
-    [ -n "$branch" ] || branch="unknown"
-    echo
-    echo "  In-Space Additive Manufacturing Experience"
-    echo "  Configuration: $branch"
-    echo "  https://github.com/JacKC-s/isame-pi-cfg/tree/$branch"
-    echo
-  '';
-
+  # no password committed here - this used to be a plaintext
+  # `initialPassword` baked into the repo, which is exactly the kind of
+  # thing this whole agenix setup exists to avoid doing. set one
+  # yourself after first boot, in your own terminal: `passwd`
   environment.systemPackages = with pkgs; [
     git
     vim
