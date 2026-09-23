@@ -48,6 +48,18 @@ the `nix.conf` line is what actually tells Nix it's allowed to build
 that platform locally. User-level config on purpose - no need to touch
 `/etc/nix/nix.conf` or run anything else as root.)
 
+If the daemon logs back `ignoring the client-specified setting
+'extra-platforms', because it is a restricted setting and you are not
+a trusted user` the first time you build, your user isn't in the
+daemon's trusted list, so the per-user `nix.conf` line above gets
+silently dropped. Either put `extra-platforms` in `/etc/nix/nix.conf`
+instead (system-wide, always trusted) or add yourself:
+
+```bash
+echo "trusted-users = root $(whoami)" | sudo tee -a /etc/nix/nix.conf
+sudo systemctl restart nix-daemon
+```
+
 Then generate a bootstrap key at `$HOME/secrets/bootstrap-age-key.txt`
 (see "First-time setup" under pi4-software below) and build same as
 anywhere else:
@@ -79,17 +91,35 @@ That's `nixos-rebuild switch --flake github:JacKC-s/isame-pi-cfg/<branch>#rpi4`
 wrapped up (see `hosts/rpi4.nix`) - native build, on the pi, no vm needed.
 Useful for testing a `save-config` branch on the pi before merging it.
 
-Or build on the vm and push the result to the pi over ssh instead, if
-you'd rather not build on the pi itself (e.g. building from local
-uncommitted changes, or the pi's slow/busy):
+Or build on the vm (or WSL, or whatever's running this repo) and push
+the result to the pi over ssh instead, if you'd rather not build on the
+pi itself - this is the normal way to do it day to day, honestly, since
+the pi's slow and usually busy running the actual printer stack:
 
 ```bash
-nixos-rebuild switch --flake .#rpi4 --target-host root@<pi-ip> --build-host localhost
+nixos-rebuild switch --flake .#rpi4 --target-host root@<pi-ip>
 ```
 
-`--build-host localhost` means "build here, activate over there" - the vm
-does the compiling (cross/emulated, same as `nix build` above), then pushes
-the result to the pi's `<pi-ip>` and switches it in, all in one command.
+`--target-host` alone builds locally (cross/emulated, same as `nix
+build` above) and only copies the finished closure to `<pi-ip>` to
+activate it. The pi does no evaluating and no compiling, just unpacks
+what it's handed and switches - which is the whole point, since that's
+the part that used to make a 1-2GB pi choke and freeze.
+
+Don't add `--build-host localhost` on top of that expecting it to mean
+"build on this machine" - it doesn't. `--build-host` always means "ssh
+to this host and build there," even when the host is `localhost`, so
+it'll try to ssh into your own box and fail with `connect to host
+localhost port 22: Connection refused` unless you happen to be running
+an sshd on the machine you're already sitting at. Leave it out entirely
+when the build machine and the machine you're typing on are the same
+one - that's the default, no flag needed.
+
+Test before committing to it, same idea as anywhere else in NixOS -
+`nixos-rebuild test --target-host root@<pi-ip>` activates without
+touching the boot default, so a bad config just needs a reboot to go
+back to whatever was already there. Swap in `switch` once it looks
+right.
 
 Don't actually need a pre-built image from here to get started, either -
 flash literally any generic NixOS aarch64 sd image, boot it with network,
@@ -117,6 +147,27 @@ https://github.com/JacKC-s/isame-pi-cfg/settings/keys
 
 Add it there with write access, rerun `save-config`. Key's scoped to
 this repo only, nothing else on the account.
+
+## Console banner
+
+Every pi shows a banner both before login (`/etc/issue`, via
+`services.getty.helpLine` + a oneshot that appends branch/address to
+`/run/issue.d`) and after login (bash's `interactiveShellInit`, same
+info, re-checked live since the address can drift after DHCP renews):
+
+```
+In-Space Additive Manufacturing Experience
+Configuration: main
+IP address:    192.168.1.42
+https://github.com/JacKC-s/isame-pi-cfg/tree/main
+```
+
+The address comes from `ip -4 -o addr show scope global`, first global
+IPv4 it finds - fine for a pi with one interface actually in use, which
+is the only case this needs to cover. Shows "no address yet" instead of
+an empty line if networking hasn't come up yet when the pre-login one
+runs; the post-login one will have caught up by the time anyone's
+actually looking at it.
 
 ## User scripts
 

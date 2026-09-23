@@ -30,35 +30,45 @@
     In-Space Additive Manufacturing Experience
   '';
 
-  # ...and the dynamic bit (branch, since agetty can't shell out to git
-  # itself) gets written to /run/issue.d at boot instead - agetty's
-  # issue-file search path already includes that dir and concatenates it
-  # after /etc/issue, so this just shows up appended to the banner above
+  # ...and the dynamic bit (branch + address, since agetty can't shell out
+  # to git or ip itself) gets written to /run/issue.d at boot instead -
+  # agetty's issue-file search path already includes that dir and
+  # concatenates it after /etc/issue, so this just shows up appended to
+  # the banner above. runs after networking so the address is actually
+  # there most of the time, but falls back gracefully before DHCP settles
   systemd.services.isame-issue-branch = {
-    description = "write current branch into the pre-login banner";
+    description = "write current branch + address into the pre-login banner";
     wantedBy = [ "multi-user.target" ];
+    after = [ "network.target" ];
     before = [ "getty.target" "getty-pre.target" ];
     serviceConfig.Type = "oneshot";
     script = ''
       mkdir -p /run/issue.d
       branch="$(${pkgs.git}/bin/git -C /etc/nixos symbolic-ref --short -q HEAD)"
       [ -n "$branch" ] || branch="unknown"
+      ip="$(${pkgs.iproute2}/bin/ip -4 -o addr show scope global | ${pkgs.gawk}/bin/awk '{print $4}' | ${pkgs.coreutils}/bin/cut -d/ -f1 | ${pkgs.coreutils}/bin/head -n1)"
+      [ -n "$ip" ] || ip="no address yet"
       {
         echo "Configuration: $branch"
+        echo "IP address:    $ip"
         echo "https://github.com/JacKC-s/isame-pi-cfg/tree/$branch"
         echo
       } > /run/issue.d/50-isame-branch.issue
     '';
   };
 
-  # this one's live too - shell startup, same branch check, shown again
-  # once you're actually logged in
+  # this one's live too - shell startup, same branch + address check,
+  # shown again once you're actually logged in (address can have changed
+  # since the boot-time banner was written, this one's always fresh)
   programs.bash.interactiveShellInit = ''
     branch="$(${pkgs.git}/bin/git -C /etc/nixos symbolic-ref --short -q HEAD)"
     [ -n "$branch" ] || branch="unknown"
+    ip="$(${pkgs.iproute2}/bin/ip -4 -o addr show scope global | ${pkgs.gawk}/bin/awk '{print $4}' | ${pkgs.coreutils}/bin/cut -d/ -f1 | ${pkgs.coreutils}/bin/head -n1)"
+    [ -n "$ip" ] || ip="no address yet"
     echo
     echo "  In-Space Additive Manufacturing Experience"
     echo "  Configuration: $branch"
+    echo "  IP address:    $ip"
     echo "  https://github.com/JacKC-s/isame-pi-cfg/tree/$branch"
     echo
   '';
