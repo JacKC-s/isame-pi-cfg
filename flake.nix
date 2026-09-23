@@ -21,25 +21,23 @@
         ];
       };
 
-      rpi4 = nixpkgs.lib.nixosSystem {
+      pi4 = nixpkgs.lib.nixosSystem {
         system = "aarch64-linux";
         modules = [
           nixos-hardware.nixosModules.raspberry-pi-4
           agenix.nixosModules.default
           "${nixpkgs}/nixos/modules/installer/sd-card/sd-image-aarch64-new-kernel.nix"
-          ./modules/mainsail-stack.nix
-          ./hosts/rpi4.nix
+          ./hosts/pi4.nix
         ];
       };
 
-      rpi5 = nixpkgs.lib.nixosSystem {
+      pi5 = nixpkgs.lib.nixosSystem {
         system = "aarch64-linux";
         modules = [
           nixos-hardware.nixosModules.raspberry-pi-5
           agenix.nixosModules.default
           "${nixpkgs}/nixos/modules/installer/sd-card/sd-image-aarch64-new-kernel.nix"
-          ./modules/mainsail-stack.nix
-          ./hosts/rpi5.nix
+          ./hosts/pi5.nix
         ];
       };
     };
